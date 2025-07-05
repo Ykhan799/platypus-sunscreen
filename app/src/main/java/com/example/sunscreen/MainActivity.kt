@@ -4,30 +4,112 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
+import com.example.sunscreen.sensing.SensorViewModel
 import com.example.sunscreen.ui.theme.SunscreenTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val sensorViewModel: SensorViewModel by viewModels()
+    private lateinit var sunscreenNotificationManager: SunscreenNotificationManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Observe various relevant sensor data
+        sensorViewModel.registerSensors()
+
+        // Notify user when they're exposed
+        sunscreenNotificationManager = SunscreenNotificationManager(applicationContext, sensorViewModel, lifecycleScope)
+        sunscreenNotificationManager.start()
+
         setContent {
             SunscreenTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                    MainDisplay(
+                        sensorViewModel = sensorViewModel,
+                        modifier = Modifier.padding(innerPadding).padding(16.dp)
                     )
                 }
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sensorViewModel.unregisterSensors()
+    }
+}
+
+@Composable
+fun MainDisplay(sensorViewModel: SensorViewModel, modifier: Modifier = Modifier) {
+    val lightValue by rememberUpdatedState(sensorViewModel.lightData.observeAsState(initial = 0f).value)
+    val uvExposed by rememberUpdatedState(sensorViewModel.uvExposed.observeAsState(initial = false).value)
+
+    Column(modifier = modifier) {
+
+        Text(text = "Current Camera Sensor Value:", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Current Light Sensor Value:", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "$lightValue lux", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Current Location Value (Inside|Outside):", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Current UV Exposure Value :", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Exposed (outside):", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = if (uvExposed) "⚠️ UV Exposed" else "✅ Safe from UV",
+            color = if (uvExposed) Color.Red else Color.Green
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        PlatypusImage()
+    }
+}
+
+@Composable
+fun PlatypusImage() {
+    Image(
+        painter = painterResource(id = R.drawable.platypus_sunscreen),
+        contentDescription = "Platypus sunscreen",
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxHeight()
+    )
 }
 
 @Composable
