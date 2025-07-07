@@ -70,27 +70,22 @@ fun MainDisplay(sensorViewModel: SensorViewModel, modifier: Modifier = Modifier)
 
     Column(modifier = modifier) {
 
-        Text(text = "Current Camera Sensor Value:", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
-        Spacer(modifier = Modifier.height(16.dp))
-
         Text(text = "Current Light Sensor Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = "$lightValue lux", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Current Location Value (Inside|Outside):", style = MaterialTheme.typography.titleMedium)
+        Text(text = "Current Location Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Current UV Exposure Value :", style = MaterialTheme.typography.titleMedium)
+        Text(text = "Current UV Exposure Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Exposed (outside):", style = MaterialTheme.typography.titleMedium)
+        Text(text = "Fused UV Exposure Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = if (uvExposed) "⚠️ UV Exposed" else "✅ Safe from UV",

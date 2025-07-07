@@ -21,6 +21,10 @@ class SunscreenNotificationManager(private val context: Context, private val sen
     private var lastAlertTimeMillis = 0L
     private var notificationJob: Job? = null
 
+    // todo - Yes||No option on alert
+        // yes -> changes timer to 2hours until next reminder
+        // no -> changes timer to 15 minutes until next reminder
+
     // Check every so often (rather than be prompted by changing sensor data) in case the
     // sensor data doesn't change, but the user needs another reminder after N time.
     fun start() {
