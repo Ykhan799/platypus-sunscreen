@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity() {
 
     private val sensorViewModel: SensorViewModel by viewModels()
     private lateinit var sunscreenNotificationManager: SunscreenNotificationManager
+    private val hardcodedLat = 33.777886
+    private val hardcodedLng = -84.398152
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +42,9 @@ class MainActivity : ComponentActivity() {
 
         // Observe various relevant sensor data
         sensorViewModel.registerSensors()
+
+        // Fetch UV index for a hardcoded location
+        sensorViewModel.fetchCurrentUvIndex(hardcodedLat, hardcodedLng)
 
         // Notify user when they're exposed
         sunscreenNotificationManager = SunscreenNotificationManager(applicationContext, sensorViewModel, lifecycleScope)
@@ -50,7 +55,9 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainDisplay(
                         sensorViewModel = sensorViewModel,
-                        modifier = Modifier.padding(innerPadding).padding(16.dp)
+                        modifier = Modifier.padding(innerPadding).padding(16.dp),
+                        lat = hardcodedLat,
+                        lng = hardcodedLng
                     )
                 }
             }
@@ -64,9 +71,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainDisplay(sensorViewModel: SensorViewModel, modifier: Modifier = Modifier) {
+fun MainDisplay(
+    sensorViewModel: SensorViewModel,
+    modifier: Modifier = Modifier,
+    lat: Double,
+    lng: Double
+) {
     val lightValue by rememberUpdatedState(sensorViewModel.lightData.observeAsState(initial = 0f).value)
     val uvExposed by rememberUpdatedState(sensorViewModel.uvExposed.observeAsState(initial = false).value)
+    val uvValue by rememberUpdatedState(sensorViewModel.uvData.observeAsState(initial = 0.0).value)
 
     Column(modifier = modifier) {
 
@@ -77,12 +90,12 @@ fun MainDisplay(sensorViewModel: SensorViewModel, modifier: Modifier = Modifier)
 
         Text(text = "Current Location Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "Lat: $lat, Lng: $lng", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Current UV Exposure Value:", style = MaterialTheme.typography.titleMedium)
+        Text(text = "Current UV Index Value:", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "todo", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "$uvValue", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(text = "Fused UV Exposure Value:", style = MaterialTheme.typography.titleMedium)
