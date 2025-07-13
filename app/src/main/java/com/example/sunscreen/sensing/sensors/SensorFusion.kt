@@ -1,20 +1,28 @@
 package com.example.sunscreen.sensing.sensors
 
-import android.util.Log
+import android.location.Location
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 
 class SensorFusion(
-    private val lightSensor: LightSensor
+    lightSensor: LightSensor,
+    locationSensor: LocationSensor
 ) {
     val uvExposed: LiveData<Boolean> get() = _uvExposed
-    private val _uvExposed = MutableLiveData<Boolean>(false)
+    private val _uvExposed = MutableLiveData(false)
 
     private var lastLightValue: Float? = null
+    private var lastLocation: Location? = null
 
     init {
         lightSensor.lightData.observeForever {
             lastLightValue = it
+            this.fuseSensorData()
+        }
+
+        // Location sensor observer
+        locationSensor.locationData.observeForever {
+            lastLocation = it
             this.fuseSensorData()
         }
     }
