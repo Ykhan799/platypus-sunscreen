@@ -20,6 +20,7 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     private val locationSensor = LocationSensor(application.applicationContext)
     val locationData: LiveData<Location> get() = locationSensor.locationData
 
+
     // adding the light and location data
     private val sensors: List<SensorInterface> = listOf(lightSensor, locationSensor)
 
@@ -27,8 +28,11 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     private val uvApiSensor = UVApiSensor(requestQueue)
     val uvData: LiveData<Double> get() = uvApiSensor.uvData
 
-    private val sensorFusion = SensorFusion(lightSensor, locationSensor)
+    private val sensorFusion = SensorFusion(lightSensor, locationSensor, uvApiSensor)
     val uvExposed: LiveData<Boolean> get() = sensorFusion.uvExposed
+
+    val firstOutsideToday: LiveData<Boolean> get() = sensorFusion.firstOutsideToday
+    val outsideTwoHours: LiveData<Boolean> get() = sensorFusion.outsideTwoHours
 
     init {
         registerSensors()
