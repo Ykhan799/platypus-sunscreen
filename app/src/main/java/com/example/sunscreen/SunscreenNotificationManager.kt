@@ -14,91 +14,135 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class SunscreenNotificationManager(private val context: Context, private val sensorViewModel: SensorViewModel, private var scope: CoroutineScope) {
-    companion object {
-        private const val MIN_ALERT_INTERVAL_MS = 10 * 1000L
+class SunscreenNotificationManager(
+    private val context: Context,
+    private val sensorViewModel: SensorViewModel,
+    private val scope: CoroutineScope
+) {
+
+    /* -------------------------------------------------------------------- */
+    /*  constants                                                           */
+    /* -------------------------------------------------------------------- */
+    private companion object {
+        const val CHANNEL_ID         = "uv_alert_channel"
+        const val NOTIFICATION_ID    = 1
+        const val PREF_FILE          = "sunscreen_prefs"
+        const val PREF_KEY_NEXT_TIME = "next_allowed_time"
+        const val TWO_HOURS_MS       = 10 * 1000L   // 2 hours
+        const val FIFTEEN_MIN_MS     =  20 * 1000L       // 15 minutes
     }
-    private var lastAlertTimeMillis = 0L
+
+    /* -------------------------------------------------------------------- */
+    /*  state                                                               */
+    /* -------------------------------------------------------------------- */
+    private val prefs =
+        context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+
     private var notificationJob: Job? = null
 
-    // todo - Yes||No option on alert
-        // yes -> changes timer to 2hours until next reminder
-        // no -> changes timer to 15 minutes until next reminder
-
-    // Check every so often (rather than be prompted by changing sensor data) in case the
-    // sensor data doesn't change, but the user needs another reminder after N time.
+    /* -------------------------------------------------------------------- */
+    /*  public API                                                          */
+    /* -------------------------------------------------------------------- */
     fun start() {
         createNotificationChannel()
+
         notificationJob = scope.launch {
             while (isActive) {
-                if (sensorViewModel.uvExposed.value == true){
-                    maybeNotify()
-                }
-                delay(1_000)
+                if (sensorViewModel.uvExposed.value == true) maybeNotify()
+                delay(10_000)               // keep the loop inexpensive
             }
-        }
-    }
-
-    // Only annoy user after some time has passed
-    fun maybeNotify() {
-        val now = System.currentTimeMillis()
-        if (now - lastAlertTimeMillis > MIN_ALERT_INTERVAL_MS) {
-            sendNotification()
-            lastAlertTimeMillis = now
-        }
-    }
-
-    private fun sendNotification() {
-        val channelId = "uv_alert_channel"
-        val notificationId = 1
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "UV Alerts",
-                AndroidNotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Alerts you when UV exposure is high"
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.warning) // use an appropriate icon
-            .setContentTitle("High UV Exposure Detected")
-            .setContentText("Consider applying sunscreen or seeking shade.")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setTicker("UV Alert!")
-            .build()
-
-        notificationManager.notify(notificationId, notification)
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "UV Alert Notifications"
-            val descriptionText = "Notifications for UV exposure reminders"
-            val importance = AndroidNotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel("uv_alert_channel", name, importance).apply {
-                description = descriptionText
-            }
-
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
-            notificationManager.createNotificationChannel(channel)
         }
     }
 
     fun stop() {
         notificationJob?.cancel()
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  implementation                                                      */
+    /* -------------------------------------------------------------------- */
+    /** Called every tick; shows a notification if we’re past the silence window. */
+    private fun maybeNotify() {
+        val now = System.currentTimeMillis()
+        val nextAllowed = prefs.getLong(PREF_KEY_NEXT_TIME, 0L)
+        if (now >= nextAllowed) {
+            sendNotification()
+        }
+    }
+
+    /** Builds and posts the actionable notification. */
+    private fun sendNotification() {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE)
+                as AndroidNotificationManager
+
+        /* ----- pend‑intents for the action buttons --------------------- */
+
+        val yesIntent = Intent(context, SunscreenActionReceiver::class.java).apply {
+            action = SunscreenActionReceiver.ACTION_CONFIRMED
+        }
+        val yesPending: PendingIntent = PendingIntent.getBroadcast(
+            context, 101, yesIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val snoozeIntent = Intent(context, SunscreenActionReceiver::class.java).apply {
+            action = SunscreenActionReceiver.ACTION_SNOOZE
+        }
+        val snoozePending: PendingIntent = PendingIntent.getBroadcast(
+            context, 102, snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        /* ----- main tap → open app ------------------------------------- */
+
+        val contentIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val contentPending: PendingIntent = PendingIntent.getActivity(
+            context, 0, contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        /* ----- build the notification ---------------------------------- */
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.warning)           // replace with your icon
+            .setContentTitle("High UV exposure detected")
+            .setContentText("Did you apply sunscreen?")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(contentPending)
+            .setOngoing(true)
+            .addAction(
+                R.drawable.check,                       // ✅ replace icon
+                "I applied",
+                yesPending
+            )
+            .addAction(
+                R.drawable.warning,                     // 🕒 replace icon
+                "Remind in 15 min",
+                snoozePending
+            )
+            .setTicker("UV Alert!")
+            .build()
+
+        nm.notify(NOTIFICATION_ID, notification)
+    }
+
+    /** One‑time channel registration (required on Android 8+). */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE)
+                as AndroidNotificationManager
+
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "UV Alerts",
+            AndroidNotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications that remind you to apply sunscreen."
+        }
+
+        nm.createNotificationChannel(channel)
     }
 }
